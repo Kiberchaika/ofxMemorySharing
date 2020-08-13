@@ -1,0 +1,63 @@
+#pragma once
+
+#include "ofMain.h"
+#include "ofxImGui.h"
+
+#include "AudioClient.h"
+#include "AudioServer.h"
+
+//#define AUDIO_WRITE
+
+class ofApp : public ofBaseApp {
+
+#ifdef AUDIO_WRITE
+	AudioClient audioClient;
+#else
+	AudioServer audioServer;
+#endif
+
+	int bufferSize;
+	int	sampleRate;
+	int channels;
+
+
+	ofxImGui::Gui gui;
+	string selectedName;
+
+public:
+
+	void setup();
+	void update();
+	void draw();
+	void exit();
+
+	void keyPressed(int key);
+	void keyReleased(int key);
+	void mouseMoved(int x, int y);
+	void mouseDragged(int x, int y, int button);
+	void mousePressed(int x, int y, int button);
+	void mouseReleased(int x, int y, int button);
+	void mouseEntered(int x, int y);
+	void mouseExited(int x, int y);
+	void windowResized(int w, int h);
+	void dragEvent(ofDragInfo dragInfo);
+	void gotMessage(ofMessage msg);
+
+	void audioOut(ofSoundBuffer & buffer);
+
+
+	ofSoundStream soundStream;
+
+	float 	pan;
+	bool 	bNoise;
+	float 	volume;
+
+	vector <float> lAudio;
+	vector <float> rAudio;
+
+	//------------------- for the simple sine wave synthesis
+	float 	targetFrequency;
+	float 	phase;
+	float 	phaseAdder;
+	float 	phaseAdderTarget;
+};
