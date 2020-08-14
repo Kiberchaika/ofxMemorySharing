@@ -45,7 +45,7 @@ public:
 				idxRead = audioData.n;
 				sharedMemoryReader.update((char*)(audioData.data[idxRead].data()), 3 * sizeof(int) + sizeof(float) * audioData.BUFFER_SIZE * idxRead, sizeof(float) * audioData.BUFFER_SIZE);
 
-				if (queue.size_approx() > audioData.BUFFER_SIZE * 2) {
+				if (queue.size_approx() > audioData.BUFFER_SIZE * audioData.BUFFERS_COUNT) { // todo: check this - 2 or not
 					queue = moodycamel::ReaderWriterQueue<float>();
 				}
 

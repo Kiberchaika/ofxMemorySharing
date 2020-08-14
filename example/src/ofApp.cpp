@@ -17,11 +17,11 @@ void ofApp::setup() {
 #ifdef AUDIO_SENDER
 	audioSender.bufferSize = bufferSize;
 	audioSender.channels = channels;
+	audioSender.queueSize = 3; // bufferSize * queueSize < must be over than receiver buffer
 	audioSender.init();
 #else
 	audioReceiver.init();
 #endif
-
 
 	lAudio.assign(bufferSize, 0.0);
 	rAudio.assign(bufferSize, 0.0);
@@ -270,8 +270,8 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 
 	// sin (n) seems to have trouble when n is very large, so we
 	// keep phase in the range of 0-TWO_PI like this:
-	while (phase > TWO_PI) {
-		phase -= TWO_PI;
+	while (phase > 1000 * TWO_PI) {
+		phase -= 1000 * TWO_PI;
 	}
 
 #ifdef AUDIO_SENDER

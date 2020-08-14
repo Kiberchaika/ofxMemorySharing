@@ -23,6 +23,11 @@ public:
 	int bufferSize;
 	int	sampleRate;
 	int channels;
+	int queueSize;
+
+	AudioSender() {
+		queueSize = 2;
+	}
 
 	~AudioSender() {
 		close();
@@ -31,7 +36,7 @@ public:
 	void init() {
 		close();
 
-		audioData.init(bufferSize * channels, 2);
+		audioData.init(bufferSize * channels, queueSize);
 
 		socket.open();
 		socket.broadcast(true);
@@ -54,11 +59,12 @@ public:
         std::vector<char> buffer(4098);
 		OSCPP::Client::Packet packet(buffer.data(), buffer.size());
 		packet.
-			openMessage("/memorySharing", 4).
+			openMessage("/memorySharing", 5).
 			string(nameSharedMemory.c_str()).
 			int32(bufferSize).
 			int32(sampleRate).
 			int32(channels).
+			int32(queueSize).
 			closeMessage();
         buffer.resize(packet.size());
 

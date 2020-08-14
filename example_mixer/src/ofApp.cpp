@@ -5,7 +5,7 @@ void ofApp::setup() {
 
 	ofBackground(34, 34, 34);
 
-	bufferSize = 512;
+	bufferSize = 1024;
 	sampleRate = 44100;
 
 	audioReceiver.init();

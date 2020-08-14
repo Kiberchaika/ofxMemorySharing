@@ -6,7 +6,7 @@
 #include "AudioSender.h"
 #include "AudioReceiver.h"
 
-//#define AUDIO_SENDER
+#define AUDIO_SENDER
 
 class ofApp : public ofBaseApp {
 

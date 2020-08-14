@@ -24,9 +24,14 @@ public:
 	int bufferSize;
 	int sampleRate;
 	int channels;
+	int queueSize;
 
 	moodycamel::ReaderWriterQueue<float> queue;
 	bool isReady;
+
+	AudioSenderConnection() {
+		queueSize = 2;
+	}
 
 	~AudioSenderConnection() {
 		close();
@@ -35,7 +40,7 @@ public:
 	void init() {
 		close();
 
-		audioData.init(bufferSize * channels, 2);
+		audioData.init(bufferSize * channels, queueSize);
 #ifdef TARGET_WIN32
 		sharedMemoryReader.init(name, 0, audioData.getSize());
 #else 
@@ -105,8 +110,9 @@ public:
                                 audioClientConnection->name = name;
                                 audioClientConnection->bufferSize = args.int32();
                                 audioClientConnection->sampleRate = args.int32();
-                                audioClientConnection->channels = args.int32();
-                                
+								audioClientConnection->channels = args.int32();
+								audioClientConnection->queueSize = args.int32();
+								
                                 audioClientConnection->init();
                                 
                                 audioSenderConnections[name] = audioClientConnection;
