@@ -14,12 +14,12 @@ void ofApp::setup() {
 	bNoise = false;
 	channels = 1;
 
-#ifdef AUDIO_WRITE
-	audioClient.bufferSize = bufferSize;
-	audioClient.channels = channels;
-	audioClient.init();
+#ifdef AUDIO_SENDER
+	audioSender.bufferSize = bufferSize;
+	audioSender.channels = channels;
+	audioSender.init();
 #else
-	audioServer.init();
+	audioReceiver.init();
 #endif
 
 
@@ -89,10 +89,10 @@ void ofApp::setup() {
 
 //--------------------------------------------------------------
 void ofApp::update() {
-#ifdef AUDIO_WRITE
-	audioClient.update();
+#ifdef AUDIO_SENDER
+	audioSender.update();
 #else
-	audioServer.update();
+	audioReceiver.update();
 #endif
 }
 
@@ -165,13 +165,13 @@ void ofApp::draw() {
 	ofDrawBitmapString(reportString, 32, 579);
 
 
-#ifndef AUDIO_WRITE
+#ifndef AUDIO_SENDER
 	gui.begin();
 	{
 		ImGui::Text("Hello, world!");
 
-		map<string, AudioClientConnection*> audioClientConnections = audioServer.getAudioClientConnections();
-		for (auto it = audioClientConnections.begin(); it != audioClientConnections.end(); it++) {
+		map<string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
+		for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); it++) {
 			if (ImGui::Button(it->first.c_str()))
 			{
 				selectedName = it->first;
@@ -186,10 +186,10 @@ void ofApp::draw() {
 void ofApp::exit() {
     soundStream.stop();
 
-#ifdef AUDIO_WRITE
-	audioClient.close();
+#ifdef AUDIO_SENDER
+	audioSender.close();
 #else
-	audioServer.close();
+	audioReceiver.close();
 #endif
 }
 
@@ -274,7 +274,7 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 		phase -= TWO_PI;
 	}
 
-#ifdef AUDIO_WRITE
+#ifdef AUDIO_SENDER
 	if (bNoise == true) {
 		// ---------------------- noise --------------
 		for (size_t i = 0; i < buffer.getNumFrames(); i++) {
@@ -293,15 +293,15 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 	}
 
 	// write
-	float* dataWrite = audioClient.getDataPointer();
+	float* dataWrite = audioSender.getDataPointer();
 	for (int i = 0; i < bufferSize; i++) {
 		dataWrite[i] = lAudio[i];
 	}
-	audioClient.writeData();
+	audioSender.writeData();
 #else 
 
-	map<string, AudioClientConnection*> audioClientConnections = audioServer.getAudioClientConnections();
-	for (auto it = audioClientConnections.begin(); it != audioClientConnections.end(); ++it) {
+	map<string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
+	for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
 		float sample = 0;
 
 		if (it->second->isReady) {

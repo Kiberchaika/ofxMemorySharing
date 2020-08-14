@@ -8,7 +8,7 @@
 #include <chrono>
 #include <ctime>  
 
-class AudioClient {
+class AudioSender {
 	UDPsocket socket;
 
 	string nameSharedMemory;

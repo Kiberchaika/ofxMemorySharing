@@ -8,7 +8,7 @@
 #include <chrono>
 #include <ctime>  
 
-struct AudioClientConnection {
+struct AudioSenderConnection {
 	chrono::time_point<chrono::system_clock> timeUpdate;
 
 	std::thread threadReader;
@@ -57,13 +57,13 @@ public:
 	}
 };
 
-class AudioServer {
+class AudioReceiver {
 	UDPsocket socket;
 
     bool isRunning;
     
 	std::mutex mutexForSocket;
-	map<string, AudioClientConnection*> audioClientConnections;
+	map<string, AudioSenderConnection*> audioSenderConnections;
 
 public:
 
@@ -83,11 +83,11 @@ public:
                             const char* name = args.string();
                             
                             mutexForSocket.lock();
-                            if (audioClientConnections.find(name) != audioClientConnections.end()) {
-                                audioClientConnections[name]->timeUpdate = std::chrono::system_clock::now();
+                            if (audioSenderConnections.find(name) != audioSenderConnections.end()) {
+                                audioSenderConnections[name]->timeUpdate = std::chrono::system_clock::now();
                             }
                             else {
-                                AudioClientConnection* audioClientConnection = new AudioClientConnection();
+                                AudioSenderConnection* audioClientConnection = new AudioSenderConnection();
                                 audioClientConnection->timeUpdate = std::chrono::system_clock::now();
                                 
                                 audioClientConnection->name = name;
@@ -97,7 +97,7 @@ public:
                                 
                                 audioClientConnection->init();
                                 
-                                audioClientConnections[name] = audioClientConnection;
+                                audioSenderConnections[name] = audioClientConnection;
                                 
                                 cout << "created nameSharedMemory: " << name << endl;
                             }
@@ -118,28 +118,28 @@ public:
 		// clear old clients
 		chrono::time_point<chrono::system_clock> time = std::chrono::system_clock::now();
 
-		for (auto it = audioClientConnections.cbegin(), next_it = it; it != audioClientConnections.cend(); it = next_it)
+		for (auto it = audioSenderConnections.cbegin(), next_it = it; it != audioSenderConnections.cend(); it = next_it)
 		{
 			++next_it;
 			std::chrono::duration<double> diff = time - it->second->timeUpdate;
 			if (diff.count() > 1.0) {
 				mutexForSocket.lock();
 				it->second->close();
-				audioClientConnections.erase(it);
+				audioSenderConnections.erase(it);
 				mutexForSocket.unlock();
 			}
 		}
 	}
 
-	map<string, AudioClientConnection*> getAudioClientConnections() {
-		return audioClientConnections;
+	map<string, AudioSenderConnection*> getAudioClientConnections() {
+		return audioSenderConnections;
 	}
 
 	void close() {
         isRunning = false;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         
-		for (auto it = audioClientConnections.begin(); it != audioClientConnections.end(); ++it) {
+		for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
 			it->second->close();
 			delete it->second;
 		}

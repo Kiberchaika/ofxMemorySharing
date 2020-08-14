@@ -3,17 +3,17 @@
 #include "ofMain.h"
 #include "ofxImGui.h"
 
-#include "AudioClient.h"
-#include "AudioServer.h"
+#include "AudioSender.h"
+#include "AudioReceiver.h"
 
-//#define AUDIO_WRITE
+//#define AUDIO_SENDER
 
 class ofApp : public ofBaseApp {
 
-#ifdef AUDIO_WRITE
-	AudioClient audioClient;
+#ifdef AUDIO_SENDER
+	AudioSender audioSender;
 #else
-	AudioServer audioServer;
+	AudioReceiver audioReceiver;
 #endif
 
 	int bufferSize;
