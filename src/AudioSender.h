@@ -23,10 +23,10 @@ public:
 	int bufferSize;
 	int	sampleRate;
 	int channels;
-	int queueSize;
+	int memoryQueueSize;
 
 	AudioSender() {
-		queueSize = 2;
+		memoryQueueSize = 2;
 	}
 
 	~AudioSender() {
@@ -36,7 +36,7 @@ public:
 	void init() {
 		close();
 
-		audioData.init(bufferSize * channels, queueSize);
+		audioData.init(bufferSize * channels, memoryQueueSize);
 
 		socket.open();
 		socket.broadcast(true);
@@ -64,7 +64,7 @@ public:
 			int32(bufferSize).
 			int32(sampleRate).
 			int32(channels).
-			int32(queueSize).
+			int32(memoryQueueSize).
 			closeMessage();
         buffer.resize(packet.size());
 

@@ -37,7 +37,7 @@ class AudioDataReader {
 public:
 	int idxRead = -1;
 
-	bool readFromMemory(SharedMemoryReader& sharedMemoryReader, AudioData& audioData, moodycamel::ReaderWriterQueue<float>& queue) {
+	bool readFromMemory(SharedMemoryReader& sharedMemoryReader, AudioData& audioData, moodycamel::ReaderWriterQueue<float>& queue, int requiredBifferSizeForQueue) {
 		bool success = false;
 		if (sharedMemoryReader.isOpened()) {
 			sharedMemoryReader.update((char*)&(audioData.n), 2 * sizeof(int), sizeof(int));
@@ -45,7 +45,8 @@ public:
 				idxRead = audioData.n;
 				sharedMemoryReader.update((char*)(audioData.data[idxRead].data()), 3 * sizeof(int) + sizeof(float) * audioData.BUFFER_SIZE * idxRead, sizeof(float) * audioData.BUFFER_SIZE);
 
-				if (queue.size_approx() > audioData.BUFFER_SIZE * audioData.BUFFERS_COUNT) { // todo: check this - 2 or not
+				int size = queue.size_approx();
+				if (size > requiredBifferSizeForQueue && size > audioData.BUFFER_SIZE * (audioData.BUFFERS_COUNT+1)) {
 					queue = moodycamel::ReaderWriterQueue<float>();
 				}
 

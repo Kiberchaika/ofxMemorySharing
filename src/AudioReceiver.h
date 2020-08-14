@@ -24,13 +24,14 @@ public:
 	int bufferSize;
 	int sampleRate;
 	int channels;
-	int queueSize;
+	int memoryQueueSize;
+	int requiredBifferSizeForQueue;
 
 	moodycamel::ReaderWriterQueue<float> queue;
 	bool isReady;
 
 	AudioSenderConnection() {
-		queueSize = 2;
+		memoryQueueSize = 2;
 	}
 
 	~AudioSenderConnection() {
@@ -40,7 +41,7 @@ public:
 	void init() {
 		close();
 
-		audioData.init(bufferSize * channels, queueSize);
+		audioData.init(bufferSize * channels, memoryQueueSize);
 #ifdef TARGET_WIN32
 		sharedMemoryReader.init(name, 0, audioData.getSize());
 #else 
@@ -52,7 +53,7 @@ public:
 
 		threadReader = std::thread([&]() {
 			while (isRunning) {
-				if (audioDataReader.readFromMemory(sharedMemoryReader, audioData, queue)) {
+				if (audioDataReader.readFromMemory(sharedMemoryReader, audioData, queue, 2 * requiredBifferSizeForQueue * channels)) {
 					isReady = true;
 				}
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -79,6 +80,8 @@ class AudioReceiver {
 	map<string, AudioSenderConnection*> audioSenderConnections;
 
 public:
+
+	int requiredBifferSizeForQueue = 512;
 
 	~AudioReceiver() {
 		close();
@@ -111,8 +114,10 @@ public:
                                 audioClientConnection->bufferSize = args.int32();
                                 audioClientConnection->sampleRate = args.int32();
 								audioClientConnection->channels = args.int32();
-								audioClientConnection->queueSize = args.int32();
+								audioClientConnection->memoryQueueSize = args.int32();
 								
+								audioClientConnection->requiredBifferSizeForQueue = requiredBifferSizeForQueue;
+
                                 audioClientConnection->init();
                                 
                                 audioSenderConnections[name] = audioClientConnection;

@@ -17,7 +17,6 @@ void ofApp::setup() {
 #ifdef AUDIO_SENDER
 	audioSender.bufferSize = bufferSize;
 	audioSender.channels = channels;
-	audioSender.queueSize = 3; // bufferSize * queueSize < must be over than receiver buffer
 	audioSender.init();
 #else
 	audioReceiver.init();

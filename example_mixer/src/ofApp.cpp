@@ -5,9 +5,10 @@ void ofApp::setup() {
 
 	ofBackground(34, 34, 34);
 
-	bufferSize = 1024;
+	bufferSize = 256;
 	sampleRate = 44100;
-
+	
+	audioReceiver.requiredBifferSizeForQueue = bufferSize;
 	audioReceiver.init();
 
 	lAudio.assign(bufferSize, 0.0);
@@ -162,18 +163,23 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 
 					float vol = 0;
 
-					for (int i = 0; i < audioSenderConnection->channels; i++) {
-						for (int j = 0; j < bufferSize; j++) {
-							audioSenderConnection->queue.try_dequeue(sample);
+					if (audioSenderConnection->queue.size_approx() > audioSenderConnection->channels * bufferSize) {
+						for (int i = 0; i < audioSenderConnection->channels; i++) {
+							for (int j = 0; j < bufferSize; j++) {
+								audioSenderConnection->queue.try_dequeue(sample);
 
-							// use only first input channel
-							if (i == 0) {
-								buffer[j*buffer.getNumChannels()] += sample;
-								buffer[j*buffer.getNumChannels() + 1] += sample;
+								// use only first input channel
+								if (i == 0) {
+									buffer[j*buffer.getNumChannels()] += sample;
+									buffer[j*buffer.getNumChannels() + 1] += sample;
 
-								vol += fabs(sample);
+									vol += fabs(sample);
+								}
 							}
 						}
+					}
+					else {
+						cout << "wait" << endl;
 					}
 
 					vol /= bufferSize;
