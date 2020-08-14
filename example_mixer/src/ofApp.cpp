@@ -46,7 +46,7 @@ void ofApp::setup() {
 void ofApp::update() {
 	audioReceiver.update();
 
-	map<string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
+	std::map<std::string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
 	for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); it++) {
 		std::string senderName = it->first;
 		if (senderUsage.find(senderName) == senderUsage.end()) {
@@ -62,17 +62,16 @@ void ofApp::draw() {
 	ofPushStyle();
 	ofPushMatrix();
 	{
-		map<string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
+		std::map<std::string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
 		for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
 			std::string senderName = it->first;
-			if (senderUsage[senderName]) {
-
-
-				ofDrawBitmapString(senderName, 10, 20);
-				ofNoFill();
-				ofDrawRectangle(160, 10, 2000 * senderAvgVol[senderName], 10);
-				ofTranslate(0, 20);
-
+			if (senderUsage.find(senderName) != senderUsage.end()) {
+				if (senderUsage[senderName]) {
+					ofDrawBitmapString(senderName, 10, 20);
+					ofNoFill();
+					ofDrawRectangle(160, 10, 2000 * senderAvgVol[senderName], 10);
+					ofTranslate(0, 20);
+				}
 			}
 		}
 
@@ -83,11 +82,12 @@ void ofApp::draw() {
 	gui.begin();
 	{
 		ImGui::Text("Senders:");
-
-		map<string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
+		std::map<std::string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
 		for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); it++) {
 			std::string senderName = it->first;
-			ImGui::Checkbox(senderName.c_str(), &senderUsage[senderName]);
+			if (senderUsage.find(senderName) != senderUsage.end()) {
+				ImGui::Checkbox(senderName.c_str(), &senderUsage[senderName]);
+			}
 		}
 	}
 	gui.end();
@@ -149,42 +149,45 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 		buffer[i*buffer.getNumChannels() + 1] = 0;
 	}
 
-	map<string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
+	std::map<std::string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
 	for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
 		float sample = 0;
 
 		AudioSenderConnection* audioSenderConnection = it->second;
 		std::string senderName = it->first;
 
-		if (audioSenderConnection->isReady) {
-			if (senderUsage[senderName]) {
+		if (senderUsage.find(senderName) != senderUsage.end()) {
+			if (audioSenderConnection->isReady) {
+				if (senderUsage[senderName]) {
 
-				float vol = 0;
+					float vol = 0;
 
-				for (int i = 0; i < audioSenderConnection->channels; i++) {
-					for (int j = 0; j < bufferSize; j++) {
-						audioSenderConnection->queue.try_dequeue(sample);
-						
-						// use only first input channel
-						if (i == 0) {
-							buffer[j*buffer.getNumChannels()] += sample;
-							buffer[j*buffer.getNumChannels() + 1] += sample;
+					for (int i = 0; i < audioSenderConnection->channels; i++) {
+						for (int j = 0; j < bufferSize; j++) {
+							audioSenderConnection->queue.try_dequeue(sample);
 
-							vol += fabs(sample);
+							// use only first input channel
+							if (i == 0) {
+								buffer[j*buffer.getNumChannels()] += sample;
+								buffer[j*buffer.getNumChannels() + 1] += sample;
+
+								vol += fabs(sample);
+							}
 						}
 					}
-				}
 
-				vol /= bufferSize;
-				senderAvgVol[senderName] = vol;
-			}
-			else {
-				// skip sender data
-				for (int i = 0; i < bufferSize; i++) {
-					audioSenderConnection->queue.try_dequeue(sample);
+					vol /= bufferSize;
+					senderAvgVol[senderName] = vol;
+				}
+				else {
+					// skip sender data
+					for (int i = 0; i < bufferSize; i++) {
+						audioSenderConnection->queue.try_dequeue(sample);
+					}
 				}
 			}
 		}
+
 	}
 
 }
