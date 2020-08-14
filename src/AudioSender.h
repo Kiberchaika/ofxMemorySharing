@@ -17,12 +17,20 @@ class AudioSender {
 	AudioData audioData;
 	AudioDataWriter audioDataWriter;
 
+	bool isRunning;
+
 public:
 	int bufferSize;
 	int	sampleRate;
 	int channels;
 
+	~AudioSender() {
+		close();
+	}
+
 	void init() {
+		close();
+
 		audioData.init(bufferSize * channels, 2);
 
 		socket.open();
@@ -38,6 +46,8 @@ public:
 				break;
 			}
 		}
+
+		isRunning = true;
 	}
 
 	void update() {
@@ -67,8 +77,11 @@ public:
 	}
 
 	void close() {
-		sharedMemoryWriter.close();
-        socket.close();
+		if (isRunning) {
+			isRunning = false;
+			sharedMemoryWriter.close();
+			socket.close();
+		}
 	}
 };
 

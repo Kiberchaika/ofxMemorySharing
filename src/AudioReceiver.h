@@ -28,7 +28,13 @@ public:
 	moodycamel::ReaderWriterQueue<float> queue;
 	bool isReady;
 
+	~AudioSenderConnection() {
+		close();
+	}
+
 	void init() {
+		close();
+
 		audioData.init(bufferSize * channels, 2);
 #ifdef TARGET_WIN32
 		sharedMemoryReader.init(name, 0, audioData.getSize());
@@ -51,9 +57,11 @@ public:
 	}
 
 	void close() {
-		isRunning = false;
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-		sharedMemoryReader.close();
+		if (isRunning) {
+			isRunning = false;
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			sharedMemoryReader.close();
+		}
 	}
 };
 
@@ -67,8 +75,12 @@ class AudioReceiver {
 
 public:
 
-	void init() {
+	~AudioReceiver() {
+		close();
+	}
 
+	void init() {
+		close();
 		std::thread threadSocket([&]() {
 			socket.open();
             if(socket.bind(PORT_MEMORYSHARING) == (int)UDPsocket::Status::OK) {
@@ -136,14 +148,16 @@ public:
 	}
 
 	void close() {
-        isRunning = false;
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        
-		for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
-			it->second->close();
-			delete it->second;
+		if (isRunning) {
+			isRunning = false;
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+			for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
+				it->second->close();
+				delete it->second;
+			}
+			socket.close();
 		}
-        socket.close();
 	}
 };
 

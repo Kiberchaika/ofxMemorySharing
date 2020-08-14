@@ -304,18 +304,23 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 	for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
 		float sample = 0;
 
-		if (it->second->isReady) {
+		AudioSenderConnection* audioSenderConnection = it->second;
+		if (audioSenderConnection->isReady) {
 			if (it->first == selectedName) {
-				for (int i = 0; i < bufferSize; i++) {
-					it->second->queue.try_dequeue(sample);
-
-					buffer[i*buffer.getNumChannels()] = sample;
-					buffer[i*buffer.getNumChannels() + 1] = sample;
+				for (int i = 0; i < audioSenderConnection->channels; i++) {
+					for (int j = 0; j < bufferSize; j++) {
+						audioSenderConnection->queue.try_dequeue(sample);
+						// use only first channel for output
+						if (i == 0) {
+							buffer[j*buffer.getNumChannels()] = sample;
+							buffer[j*buffer.getNumChannels() + 1] = sample;
+						}
+					}
 				}
 			}
 			else {
 				for (int i = 0; i < bufferSize; i++) {
-					it->second->queue.try_dequeue(sample);
+					audioSenderConnection->queue.try_dequeue(sample);
 				}
 			}
 		}
