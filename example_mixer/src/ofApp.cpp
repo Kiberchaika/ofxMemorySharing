@@ -5,10 +5,11 @@ void ofApp::setup() {
 
 	ofBackground(34, 34, 34);
 
-	bufferSize = 256;
-	sampleRate = 44100;
+	bufferSize = 1024;
+	sampleRate = 48000;// 22050 * 22050;// 48000;// 44100;// 48000;
 	
 	audioReceiver.requiredBifferSizeForQueue = bufferSize;
+	audioReceiver.requiredSampleRate = sampleRate;
 	audioReceiver.init();
 
 	lAudio.assign(bufferSize, 0.0);
@@ -40,6 +41,8 @@ void ofApp::setup() {
 	//required call
 	gui.setup();
 	ImGui::GetIO().MouseDrawCursor = false;
+
+ 
 }
 
 
@@ -75,7 +78,6 @@ void ofApp::draw() {
 				}
 			}
 		}
-
 	}
 	ofPopMatrix();
 	ofPopStyle();
@@ -141,6 +143,9 @@ void ofApp::windowResized(int w, int h) {
 
 }
 
+float phase = 0;
+
+
 //--------------------------------------------------------------
 void ofApp::audioOut(ofSoundBuffer & buffer) {
 
@@ -149,6 +154,24 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 		buffer[i*buffer.getNumChannels()] = 0;
 		buffer[i*buffer.getNumChannels() + 1] = 0;
 	}
+
+	/*
+		// use sin wave for test
+	while (phase > 10000 * TWO_PI) {
+		phase -= 10000 * TWO_PI;
+	}
+
+	float phaseOrig = phase;
+	for (int i = 0; i < buffer.getNumChannels(); i++) {
+		phase = phaseOrig;
+		for (int j = 0; j < bufferSize; j++) {
+			phase += 0.025;
+			buffer[j*buffer.getNumChannels()] = 0.1 * sin(phase);
+			buffer[j*buffer.getNumChannels()+1] = 0.1 * sin(phase);
+		}
+	}
+	return;
+	*/
 
 	std::map<std::string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
 	for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
@@ -162,16 +185,21 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 				if (senderUsage[senderName]) {
 
 					float vol = 0;
-
-					if (audioSenderConnection->queue.size_approx() > audioSenderConnection->channels * bufferSize) {
-						for (int i = 0; i < audioSenderConnection->channels; i++) {
-							for (int j = 0; j < bufferSize; j++) {
-								audioSenderConnection->queue.try_dequeue(sample);
+					int size = audioSenderConnection->audioQueue.size_approx();
+					//cout << ">> size: " << size << endl;
+					if (size > audioSenderConnection->channels * bufferSize) {
+						for (int j = 0; j < bufferSize; j++) {
+							for (int i = 0; i < audioSenderConnection->channels; i++) {
+								if (!audioSenderConnection->audioQueue.try_dequeue(sample)) {
+									cout << "not valid" << endl;
+									//valid = false;
+									break;
+								}
 
 								// use only first input channel
 								if (i == 0) {
-									buffer[j*buffer.getNumChannels()] += sample;
-									buffer[j*buffer.getNumChannels() + 1] += sample;
+									buffer[j*buffer.getNumChannels()] = sample;
+									buffer[j*buffer.getNumChannels() + 1] = sample;
 
 									vol += fabs(sample);
 								}
@@ -186,9 +214,11 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 					senderAvgVol[senderName] = vol;
 				}
 				else {
-					// skip sender data
-					for (int i = 0; i < bufferSize; i++) {
-						audioSenderConnection->queue.try_dequeue(sample);
+					// skip sender data ?
+					for (int i = 0; i < audioSenderConnection->channels ; i++) {
+						for (int j = 0; j < bufferSize; j++) {
+							audioSenderConnection->audioQueue.try_dequeue(sample);
+						}
 					}
 				}
 			}

@@ -2,9 +2,13 @@
 
 #include "AudioData.h"
 #include "SharedMemory.h"
+
 #include "oscpp/server.hpp"
 #include "oscpp/print.hpp"
 #include "UDPsocket.h"
+
+#include "SpeexResampler.h"
+
 #include <chrono>
 #include <ctime>  
 
@@ -18,6 +22,12 @@ struct AudioSenderConnection {
 	AudioData audioData;
 	AudioDataReader audioDataReader;
 
+	speexport::SpeexResampler speexResampler;
+
+	vector<float> data;
+	vector<float> resampledData;
+	int resampledBufferSize;
+
 public:
 	// data
 	string name;
@@ -25,10 +35,13 @@ public:
 	int sampleRate;
 	int channels;
 	int memoryQueueSize;
-	int requiredBifferSizeForQueue;
 
-	moodycamel::ReaderWriterQueue<float> queue;
+	int requiredBufferSizeForQueue;
+	int requiredSampleRate;
+
+	moodycamel::ReaderWriterQueue<float> audioQueue;
 	bool isReady;
+
 
 	AudioSenderConnection() {
 		memoryQueueSize = 2;
@@ -40,6 +53,12 @@ public:
 
 	void init() {
 		close();
+
+		int err = 0;
+		speexResampler.init(channels, sampleRate, requiredSampleRate, 8, &err);
+
+		resampledBufferSize = (1.0 * bufferSize * requiredSampleRate / sampleRate);
+		resampledData.resize(resampledBufferSize * channels);
 
 		audioData.init(bufferSize * channels, memoryQueueSize);
 #ifdef TARGET_WIN32
@@ -53,10 +72,41 @@ public:
 
 		threadReader = std::thread([&]() {
 			while (isRunning) {
-				if (audioDataReader.readFromMemory(sharedMemoryReader, audioData, queue, 2 * requiredBifferSizeForQueue * channels)) {
+				if (audioDataReader.readFromMemory(sharedMemoryReader, audioData)) {
+					
+					// resampling
+					for (int c = 0; c < channels; c++) {
+						unsigned int in_len = bufferSize;
+						unsigned int out_len = resampledBufferSize;
+						speexResampler.process(c, &audioData.data[audioDataReader.idxRead][c * bufferSize], &in_len, &resampledData[c * resampledBufferSize], &out_len);
+					}
+ 
+					int size = audioQueue.size_approx();
+					if (size > 4 * resampledBufferSize * channels && size > 4 * audioData.DATABUFFER_SIZE * audioData.DATABUFFERS_COUNT) {
+						audioQueue = moodycamel::ReaderWriterQueue<float>();
+					}
+					 
+					/*
+					for (int i = 0; i < bufferSize; i++) {
+						for (int c = 0; c < channels; c++) {
+							if (!audioQueue.enqueue(audioData.data[audioDataReader.idxRead][c * bufferSize + i])) {
+								cout << "errrpr" << endl;
+							}
+						}
+					}
+					*/
+
+					for (int i = 0; i < resampledBufferSize; i++) {
+						for (int c = 0; c < channels; c++) {
+							if (!audioQueue.enqueue(resampledData[c * resampledBufferSize + i])) {
+								cout << "errrpr" << endl;
+							}
+						}
+					}
+					
+					//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 					isReady = true;
 				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			}
 		});
 		threadReader.detach();
@@ -82,6 +132,7 @@ class AudioReceiver {
 public:
 
 	int requiredBifferSizeForQueue = 512;
+	int requiredSampleRate = 44100;
 
 	~AudioReceiver() {
 		close();
@@ -116,7 +167,8 @@ public:
 								audioClientConnection->channels = args.int32();
 								audioClientConnection->memoryQueueSize = args.int32();
 								
-								audioClientConnection->requiredBifferSizeForQueue = requiredBifferSizeForQueue;
+								audioClientConnection->requiredBufferSizeForQueue = requiredBifferSizeForQueue;
+								audioClientConnection->requiredSampleRate = requiredSampleRate;
 
                                 audioClientConnection->init();
                                 
