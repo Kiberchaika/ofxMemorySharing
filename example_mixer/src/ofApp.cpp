@@ -174,6 +174,7 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 	*/
 
 	std::map<std::string, AudioSenderConnection*> audioSenderConnections = audioReceiver.getAudioClientConnections();
+	int cntActiveConnections = 0;
 	for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
 		float sample = 0;
 
@@ -197,14 +198,14 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 								}
 
 								// use only first input channel
-								if (i == 0) {
-									buffer[j*buffer.getNumChannels()] = sample;
-									buffer[j*buffer.getNumChannels() + 1] = sample;
-
+								if (i < 2) {
+									buffer[j*buffer.getNumChannels() + i] += sample;
 									vol += fabs(sample);
 								}
 							}
 						}
+
+						
 					}
 					else {
 						cout << "wait" << endl;
@@ -212,6 +213,8 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 
 					vol /= bufferSize;
 					senderAvgVol[senderName] = vol;
+
+					cntActiveConnections++;
 				}
 				else {
 					// skip sender data ?
@@ -223,9 +226,13 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 				}
 			}
 		}
-
 	}
 
+	for (int i = 0; i < channels; i++) {
+		for (int j = 0; j < bufferSize; j++) {
+			buffer[j*buffer.getNumChannels() + i] /= cntActiveConnections;
+		}
+	}
 }
 
 //--------------------------------------------------------------
