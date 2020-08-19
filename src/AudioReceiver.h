@@ -82,24 +82,26 @@ public:
 					}
  
 					int size = audioQueue.size_approx();
-					if (size > 4 * resampledBufferSize * channels && size > 4 * audioData.DATABUFFER_SIZE * audioData.DATABUFFERS_COUNT) {
+					if (size > 2 * requiredBufferSizeForQueue * channels && size > 2 * audioData.DATABUFFER_SIZE * audioData.DATABUFFERS_COUNT) {
 						audioQueue = moodycamel::ReaderWriterQueue<float>();
 					}
-					 
+
 					/*
 					for (int i = 0; i < bufferSize; i++) {
 						for (int c = 0; c < channels; c++) {
 							if (!audioQueue.enqueue(audioData.data[audioDataReader.idxRead][c * bufferSize + i])) {
-								cout << "errrpr" << endl;
+								cout << "error" << endl;
 							}
 						}
 					}
 					*/
 
+					//audioData.data[audioDataReader.idxRead][i + c * resampledBufferSize]
+
 					for (int i = 0; i < resampledBufferSize; i++) {
 						for (int c = 0; c < channels; c++) {
-							if (!audioQueue.enqueue(resampledData[c * resampledBufferSize + i])) {
-								cout << "errrpr" << endl;
+							if (!audioQueue.enqueue(resampledData[i + c * resampledBufferSize])) {
+								cout << "error" << endl;
 							}
 						}
 					}
@@ -131,7 +133,7 @@ class AudioReceiver {
 
 public:
 
-	int requiredBifferSizeForQueue = 512;
+	int requiredBufferSizeForQueue = 512;
 	int requiredSampleRate = 44100;
 
 	~AudioReceiver() {
@@ -167,7 +169,7 @@ public:
 								audioClientConnection->channels = args.int32();
 								audioClientConnection->memoryQueueSize = args.int32();
 								
-								audioClientConnection->requiredBufferSizeForQueue = requiredBifferSizeForQueue;
+								audioClientConnection->requiredBufferSizeForQueue = requiredBufferSizeForQueue;
 								audioClientConnection->requiredSampleRate = requiredSampleRate;
 
                                 audioClientConnection->init();

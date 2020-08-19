@@ -5,10 +5,11 @@ void ofApp::setup() {
 
 	ofBackground(34, 34, 34);
 
-	bufferSize = 1024;
-	sampleRate = 48000;// 22050 * 22050;// 48000;// 44100;// 48000;
+	bufferSize = 512;
+	channels = 2;
+	sampleRate = 44100;// 22050 // 44100 // 48000;
 	
-	audioReceiver.requiredBifferSizeForQueue = bufferSize;
+	audioReceiver.requiredBufferSizeForQueue = bufferSize;
 	audioReceiver.requiredSampleRate = sampleRate;
 	audioReceiver.init();
 
@@ -33,7 +34,7 @@ void ofApp::setup() {
 
 	settings.setOutListener(this);
 	settings.sampleRate = sampleRate;
-	settings.numOutputChannels = 2;
+	settings.numOutputChannels = channels;
 	settings.numInputChannels = 0;
 	settings.bufferSize = bufferSize;
 	soundStream.setup(settings);
@@ -151,8 +152,8 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 
 	// cleanup buffer
 	for (int i = 0; i < bufferSize; i++) {
-		buffer[i*buffer.getNumChannels()] = 0;
-		buffer[i*buffer.getNumChannels() + 1] = 0;
+		buffer[i*channels] = 0;
+		buffer[i*channels + 1] = 0;
 	}
 
 	/*
@@ -197,15 +198,13 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 									break;
 								}
 
-								// use only first input channel
+								// use only first 2 channels
 								if (i < 2) {
-									buffer[j*buffer.getNumChannels() + i] += sample;
+									buffer[j*channels + i] += sample;
 									vol += fabs(sample);
 								}
 							}
 						}
-
-						
 					}
 					else {
 						cout << "wait" << endl;
@@ -230,7 +229,7 @@ void ofApp::audioOut(ofSoundBuffer & buffer) {
 
 	for (int i = 0; i < channels; i++) {
 		for (int j = 0; j < bufferSize; j++) {
-			buffer[j*buffer.getNumChannels() + i] /= cntActiveConnections;
+			buffer[j*channels + i] /= cntActiveConnections;
 		}
 	}
 }
