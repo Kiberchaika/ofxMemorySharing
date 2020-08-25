@@ -9,6 +9,7 @@
 
 #include "SpeexResampler.h"
 
+#include <thread>
 #include <chrono>
 #include <ctime>  
 
@@ -28,13 +29,22 @@ struct AudioSenderConnection {
 	vector<float> resampledData;
 	int resampledBufferSize;
 
+	std::thread threadSocket;
+
+	std::function<void(AudioSenderConnection*, std::string)> callbackReceiveData;
+
+	UDPsocket socket;
+
 public:
 	// data
+	string nameSharedMemory;
 	string name;
 	int bufferSize;
 	int sampleRate;
 	int channels;
 	int memoryQueueSize;
+	int portReceive = -1;
+	int portSend = -1;
 
 	int requiredBufferSizeForQueue;
 	int requiredSampleRate;
@@ -54,6 +64,17 @@ public:
 	void init() {
 		close();
 
+		socket.open();
+		for (int i = PORT_MEMORYSHARING + 1; i < PORT_MEMORYSHARING + 1000; i++) {
+			if (socket.bind(i) == (int)UDPsocket::Status::OK) {
+				portReceive = i;
+				break;
+			}
+		}
+		if (socket.send(std::to_string(portReceive), UDPsocket::IPv4::Loopback(portSend)) == (int)UDPsocket::Status::SendError) {
+			std::cout << "socket send error" << std::endl;
+		}
+
 		int err = 0;
 		speexResampler.init(channels, sampleRate, requiredSampleRate, 8, &err);
 
@@ -62,13 +83,26 @@ public:
 
 		audioData.init(bufferSize * channels, memoryQueueSize);
 #ifdef TARGET_WIN32
-		sharedMemoryReader.init(name, 0, audioData.getSize());
+		sharedMemoryReader.init(nameSharedMemory, 0, audioData.getSize());
 #else 
-		sharedMemoryReader.init("", stoi(name), audioData.getSize());
+		sharedMemoryReader.init("", std::stoi(nameSharedMemory), audioData.getSize());
 #endif
 
 		isRunning = true;
 		isReady = false;
+
+		threadSocket = std::thread([&]() {
+			UDPsocket::IPv4 ipaddr;
+			std::string data;
+
+			while (isRunning) {
+				size_t dataSize = socket.recv(data, ipaddr);
+				if (!data.empty()) {
+					if (callbackReceiveData) callbackReceiveData(this, data);
+				}
+			}
+		});
+		threadSocket.detach();
 
 		threadReader = std::thread([&]() {
 			while (isRunning) {
@@ -114,11 +148,18 @@ public:
 		threadReader.detach();
 	}
 
+	void sendData(std::string str) {
+		if (portSend < 0 || socket.send(str, UDPsocket::IPv4::Loopback(portSend)) == (int)UDPsocket::Status::SendError) {
+			std::cout << "socket send error" << std::endl;
+		}
+	}
+
 	void close() {
 		if (isRunning) {
 			isRunning = false;
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			sharedMemoryReader.close();
+			socket.close();
 		}
 	}
 };
@@ -130,6 +171,8 @@ class AudioReceiver {
     
 	std::mutex mutexForSocket;
 	map<string, AudioSenderConnection*> audioSenderConnections;
+
+	std::function<void(AudioSenderConnection*, std::string)> callbackReceiveData;
 
 public:
 
@@ -153,30 +196,38 @@ public:
                         OSCPP::Server::Message msg(OSCPP::Server::Packet(data.c_str(), dataSize));
                         OSCPP::Server::ArgStream args(msg.args());
                         if (msg == "/memorySharing") {
-                            const char* name = args.string();
+                            const char* nameSharedMemory = args.string();
                             
                             mutexForSocket.lock();
-                            if (audioSenderConnections.find(name) != audioSenderConnections.end()) {
-                                audioSenderConnections[name]->timeUpdate = std::chrono::system_clock::now();
+                            if (audioSenderConnections.find(nameSharedMemory) != audioSenderConnections.end()) {
+                                audioSenderConnections[nameSharedMemory]->timeUpdate = std::chrono::system_clock::now();
                             }
                             else {
                                 AudioSenderConnection* audioClientConnection = new AudioSenderConnection();
                                 audioClientConnection->timeUpdate = std::chrono::system_clock::now();
                                 
-                                audioClientConnection->name = name;
-                                audioClientConnection->bufferSize = args.int32();
-                                audioClientConnection->sampleRate = args.int32();
+                                audioClientConnection->nameSharedMemory = nameSharedMemory;
+								audioClientConnection->name = args.string();
+								audioClientConnection->bufferSize = args.int32();
+								audioClientConnection->sampleRate = args.int32();
 								audioClientConnection->channels = args.int32();
 								audioClientConnection->memoryQueueSize = args.int32();
-								
+								audioClientConnection->portSend = args.int32();
+
 								audioClientConnection->requiredBufferSizeForQueue = requiredBufferSizeForQueue;
 								audioClientConnection->requiredSampleRate = requiredSampleRate;
 
+								audioClientConnection->callbackReceiveData = callbackReceiveData;
+
+								// callback todo
+								//audioClientConnection->callbackSendData =
+								//audioClientConnection->callbackReceiveData = 
+
                                 audioClientConnection->init();
                                 
-                                audioSenderConnections[name] = audioClientConnection;
+                                audioSenderConnections[nameSharedMemory] = audioClientConnection;
                                 
-                                cout << "created nameSharedMemory: " << name << endl;
+                                cout << "created nameSharedMemory: " << nameSharedMemory << endl;
                             }
                             mutexForSocket.unlock();
                         }

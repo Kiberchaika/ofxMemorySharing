@@ -113,11 +113,14 @@ public:
 	{
 		self_addr = ipaddr;
 		self_addr_len = sizeof(self_addr);
+		int ret;
+		/*
 		int opt = 1;
 		int ret = ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
 		if (ret < 0) {
 			return (int)Status::SetSockOptError;
 		}
+		*/
 		ret = ::bind(sock, (sockaddr_t*)&self_addr, self_addr_len);
 		if (ret < 0) {
 			return (int)Status::BindError;
