@@ -2,10 +2,22 @@
 
 #include "ofMain.h"
 #include "ofxImGui.h"
+#include "ofxRTTR.h"
 
 #include "AudioReceiver.h"
 
+struct PANNER_DATA {
+	float x;
+	float y;
+	float z;
+	float rotation;
+	float diverge;
+	float gain;
+};
+
 class ofApp : public ofBaseApp {
+
+	std::map<AudioSenderConnection*, PANNER_DATA> mapAudioConnectionData;
 
 	AudioReceiver audioReceiver;
 

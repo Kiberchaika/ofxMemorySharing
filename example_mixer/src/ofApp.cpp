@@ -1,5 +1,18 @@
 #include "ofApp.h"
 
+RTTR_REGISTRATION
+{
+	rttr::registration::class_<PANNER_DATA>("PANNER_DATA")
+		.constructor()(rttr::policy::ctor::as_object)
+		.property("x", &PANNER_DATA::x)
+		.property("y", &PANNER_DATA::y)
+		.property("z", &PANNER_DATA::z)
+		.property("rotation", &PANNER_DATA::rotation)
+		.property("diverge", &PANNER_DATA::diverge)
+		.property("gain", &PANNER_DATA::gain)
+	;
+}
+
 //--------------------------------------------------------------
 void ofApp::setup() {
 
@@ -11,6 +24,11 @@ void ofApp::setup() {
 	
 	audioReceiver.requiredBufferSizeForQueue = bufferSize;
 	audioReceiver.requiredSampleRate = sampleRate;
+	audioReceiver.callbackReceiveData = [&](AudioSenderConnection* connection, std::string data) {
+		PANNER_DATA pannerData;
+		io::from_json(data, pannerData); 
+		mapAudioConnectionData[connection] = pannerData;
+	};
 	audioReceiver.init();
 
 	lAudio.assign(bufferSize, 0.0);

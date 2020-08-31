@@ -172,12 +172,11 @@ class AudioReceiver {
 	std::mutex mutexForSocket;
 	map<string, AudioSenderConnection*> audioSenderConnections;
 
-	std::function<void(AudioSenderConnection*, std::string)> callbackReceiveData;
-
 public:
 
 	int requiredBufferSizeForQueue = 512;
 	int requiredSampleRate = 44100;
+	std::function<void(AudioSenderConnection*, std::string)> callbackReceiveData;
 
 	~AudioReceiver() {
 		close();
@@ -216,12 +215,7 @@ public:
 
 								audioClientConnection->requiredBufferSizeForQueue = requiredBufferSizeForQueue;
 								audioClientConnection->requiredSampleRate = requiredSampleRate;
-
 								audioClientConnection->callbackReceiveData = callbackReceiveData;
-
-								// callback todo
-								//audioClientConnection->callbackSendData =
-								//audioClientConnection->callbackReceiveData = 
 
                                 audioClientConnection->init();
                                 
