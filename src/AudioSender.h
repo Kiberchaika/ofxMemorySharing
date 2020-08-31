@@ -23,11 +23,13 @@ class AudioSender {
 
 	std::thread threadSocket;
 
-	std::function<void(std::string)> callbackReceiveData;
 
 	bool isRunning;
 
 public:
+
+	std::function<void(std::string)> callbackReceiveData;
+
 	std::string name;
 	int bufferSize;
 	int	sampleRate;
@@ -75,18 +77,19 @@ public:
 
 		threadSocket = std::thread([&]() {
 			UDPsocket::IPv4 ipaddr;
-			std::string data;
+			std::string receivedString;
 
-			bool isInited = false;
 			while (isRunning) {
-				size_t dataSize = socket.recv(data, ipaddr);
-				if (!data.empty()) {
-					if (!isInited) {
-						portSend = std::stoi(data);
-						isInited = true;
+				size_t dataSize = socket.recv(receivedString, ipaddr);
+				if (!receivedString.empty()) {
+					if (!strncmp(receivedString.data(), "port:", 5)) {
+						char* pch = strtok((char*)receivedString.data(), ":");
+						pch = strtok(NULL, ":");
+	
+						portSend = std::stoi(pch);
 					}
 					else {
-						if (callbackReceiveData) callbackReceiveData(data);
+						if (callbackReceiveData) callbackReceiveData(receivedString);
 					}
 				}
 			}

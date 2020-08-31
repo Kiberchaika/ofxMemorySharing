@@ -71,7 +71,7 @@ public:
 				break;
 			}
 		}
-		if (socket.send(std::to_string(portReceive), UDPsocket::IPv4::Loopback(portSend)) == (int)UDPsocket::Status::SendError) {
+		if (socket.send("port:" + std::to_string(portReceive), UDPsocket::IPv4::Loopback(portSend)) == (int)UDPsocket::Status::SendError) {
 			std::cout << "socket send error" << std::endl;
 		}
 
@@ -93,12 +93,12 @@ public:
 
 		threadSocket = std::thread([&]() {
 			UDPsocket::IPv4 ipaddr;
-			std::string data;
+			std::string receivedString;
 
 			while (isRunning) {
-				size_t dataSize = socket.recv(data, ipaddr);
-				if (!data.empty()) {
-					if (callbackReceiveData) callbackReceiveData(this, data);
+				size_t dataSize = socket.recv(receivedString, ipaddr);
+				if (!receivedString.empty()) {
+					if (callbackReceiveData) callbackReceiveData(this, receivedString);
 				}
 			}
 		});
@@ -135,7 +135,7 @@ public:
 					for (int i = 0; i < resampledBufferSize; i++) {
 						for (int c = 0; c < channels; c++) {
 							if (!audioQueue.enqueue(resampledData[i + c * resampledBufferSize])) {
-								cout << "error" << endl;
+								std::cout << "error" << std::endl;
 							}
 						}
 					}
@@ -170,7 +170,7 @@ class AudioReceiver {
     bool isRunning;
     
 	std::mutex mutexForSocket;
-	map<string, AudioSenderConnection*> audioSenderConnections;
+	std::map<string, AudioSenderConnection*> audioSenderConnections;
 
 public:
 
@@ -238,7 +238,7 @@ public:
 
 	void update() {
 		// clear old clients
-		chrono::time_point<chrono::system_clock> time = std::chrono::system_clock::now();
+		std::chrono::time_point<std::chrono::system_clock> time = std::chrono::system_clock::now();
 
 		for (auto it = audioSenderConnections.cbegin(), next_it = it; it != audioSenderConnections.cend(); it = next_it)
 		{
@@ -253,7 +253,7 @@ public:
 		}
 	}
 
-	map<string, AudioSenderConnection*> getAudioClientConnections() {
+	std::map<string, AudioSenderConnection*> getAudioClientConnections() {
 		return audioSenderConnections;
 	}
 

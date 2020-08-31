@@ -6,18 +6,12 @@
 
 #include "AudioReceiver.h"
 
-struct PANNER_DATA {
-	float x;
-	float y;
-	float z;
-	float rotation;
-	float diverge;
-	float gain;
-};
+#include "TypesForDataExchange.h"
+
 
 class ofApp : public ofBaseApp {
 
-	std::map<AudioSenderConnection*, PANNER_DATA> mapAudioConnectionData;
+	std::map<AudioSenderConnection*, PANNER_SETTINGS> mapAudioConnectionData;
 
 	AudioReceiver audioReceiver;
 
