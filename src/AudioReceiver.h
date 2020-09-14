@@ -118,6 +118,7 @@ public:
 					int size = audioQueue.size_approx();
 					if (size > 2 * requiredBufferSizeForQueue * channels && size > 2 * audioData.DATABUFFER_SIZE * audioData.DATABUFFERS_COUNT) {
 						audioQueue = moodycamel::ReaderWriterQueue<float>();
+						std::cout << "recreate" << std::endl;
 					}
 
 					/*
@@ -134,7 +135,7 @@ public:
 
 					for (int i = 0; i < resampledBufferSize; i++) {
 						for (int c = 0; c < channels; c++) {
-							if (!audioQueue.enqueue(resampledData[i + c * resampledBufferSize])) {
+							while (!audioQueue.enqueue(resampledData[i + c * resampledBufferSize])) {
 								std::cout << "error" << std::endl;
 							}
 						}
