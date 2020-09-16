@@ -164,7 +164,7 @@ public:
 	void close() {
 		if (isRunning) {
 			isRunning = false;
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			sharedMemoryReader.close();
 			socket.close();
 		}
@@ -199,13 +199,13 @@ public:
                 while (isRunning) {
                     size_t  dataSize = socket.recv(data, ipaddr);
                     if (!data.empty()) {
-                        OSCPP::Server::Message msg(OSCPP::Server::Packet(data.c_str(), dataSize));
+						OSCPP::Server::Message msg(OSCPP::Server::Packet(data.c_str(), dataSize));
                         OSCPP::Server::ArgStream args(msg.args());
                         if (msg == "/memorySharing") {
                             const char* nameSharedMemory = args.string();
                             
-                            mutexForSocket.lock();
-                            if (audioSenderConnections.find(nameSharedMemory) != audioSenderConnections.end()) {
+							mutexForSocket.lock();
+							if (audioSenderConnections.find(nameSharedMemory) != audioSenderConnections.end()) {
                                 audioSenderConnections[nameSharedMemory]->timeUpdate = std::chrono::system_clock::now();
                             }
                             else {
@@ -230,10 +230,11 @@ public:
                                 
                                 cout << "created nameSharedMemory: " << nameSharedMemory << endl;
                             }
-                            mutexForSocket.unlock();
-                        }
+							mutexForSocket.unlock();
+						}
                     }
                 }
+				cout << "closed socket" << endl;
             }
 			
 		});
@@ -267,13 +268,16 @@ public:
 	void close() {
 		if (isRunning) {
 			isRunning = false;
-			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+			mutexForSocket.lock();
 			for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
 				it->second->close();
 				delete it->second;
 			}
+			audioSenderConnections.clear();
 			socket.close();
+			mutexForSocket.unlock();
 		}
 	}
 };
