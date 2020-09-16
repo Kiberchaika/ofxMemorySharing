@@ -18,6 +18,7 @@ struct AudioSenderConnection {
 
 	std::thread threadReader;
 	bool isRunning;
+	bool isActive;
 
 	SharedMemoryReader sharedMemoryReader;
 	AudioData audioData;
@@ -89,6 +90,7 @@ public:
 #endif
 
 		isRunning = true;
+		isActive = true;
 		isReady = false;
 
 		threadSocket = std::thread([&]() {
@@ -106,7 +108,7 @@ public:
 
 		threadReader = std::thread([&]() {
 			while (isRunning) {
-				if (audioDataReader.readFromMemory(sharedMemoryReader, audioData)) {
+				if (isActive && audioDataReader.readFromMemory(sharedMemoryReader, audioData)) {
 					
 					// resampling
 					for (int c = 0; c < channels; c++) {
@@ -153,6 +155,10 @@ public:
 		if (portSend < 0 || socket.send(str, UDPsocket::IPv4::Loopback(portSend)) == (int)UDPsocket::Status::SendError) {
 			std::cout << "socket send error" << std::endl;
 		}
+	}
+
+	void setActive(bool status) {
+		isActive = status;
 	}
 
 	void close() {
