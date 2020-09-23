@@ -114,7 +114,7 @@ public:
 				closeMessage();
 			buffer.resize(packet.size());
 
-			if (socketBroadcast.send(buffer, UDPsocket::IPv4::Broadcast(PORT_MEMORYSHARING)) == (int)UDPsocket::Status::SendError) {
+			if (socketBroadcast.send(buffer, UDPsocket::IPv4::Loopback(PORT_MEMORYSHARING)) == (int)UDPsocket::Status::SendError) {
 				std::cout << "socket broadcast send error" << std::endl;
 			}
 			// cout << "nameSharedMemory: " << nameSharedMemory << endl;

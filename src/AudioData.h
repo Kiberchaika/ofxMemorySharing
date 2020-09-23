@@ -3,7 +3,7 @@
 #include "SharedMemory.h"
 #include "readerwriterqueue/readerwriterqueue.h"
 
-const int PORT_MEMORYSHARING = 2020;
+const int PORT_MEMORYSHARING = 2040;
 
 class AudioData {
 public:
