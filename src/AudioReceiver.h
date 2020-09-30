@@ -77,7 +77,7 @@ public:
 		}
 
 		int err = 0;
-		speexResampler.init(channels, sampleRate, requiredSampleRate, 8, &err);
+		speexResampler.init(channels, sampleRate, requiredSampleRate, 4, &err);
 
 		resampledBufferSize = (1.0 * bufferSize * requiredSampleRate / sampleRate);
 		resampledData.resize(resampledBufferSize * channels);
