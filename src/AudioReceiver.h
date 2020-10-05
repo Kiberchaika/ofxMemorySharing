@@ -265,17 +265,24 @@ public:
 		return audioSenderConnections;
 	}
 
+	void cleanup() {
+		mutexForSocket.lock();
+		for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
+			it->second->close();
+			delete it->second;
+		}
+		audioSenderConnections.clear();
+		mutexForSocket.unlock();
+	}
+
 	void close() {
 		if (isRunning) {
 			isRunning = false;
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+			cleanup();
+
 			mutexForSocket.lock();
-			for (auto it = audioSenderConnections.begin(); it != audioSenderConnections.end(); ++it) {
-				it->second->close();
-				delete it->second;
-			}
-			audioSenderConnections.clear();
 			socket.close();
 			mutexForSocket.unlock();
 		}
