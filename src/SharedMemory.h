@@ -60,7 +60,7 @@ public:
 			}
 		} 
 		else {
-			std::cout << "Memory is already open" << std::endl;
+			std::cout << "Memory is already open" << strerror(errno) << std::endl;
 			CloseHandle(hMemory);
 			return false;
 		}
@@ -69,12 +69,12 @@ public:
 		key_t k = ftok("/tmp/", key);
 		sharedMemId = shmget(k, sizeMemory, IPC_CREAT | IPC_EXCL | 0666);
 		if (sharedMemId == -1) {
-			std::cout << "shmget error" << std::endl;
+            std::cout << "shmget error: " << std::endl;
 			return false;
 		}
 		buf = (char*)shmat(sharedMemId, NULL, 0);
 		if (buf == MAP_FAILED) {
-			std::cout << "shmat error" << std::endl;
+            std::cout << "shmat error: " << strerror(errno) << std::endl;
 			shmctl(sharedMemId, IPC_RMID, NULL);
 			sharedMemId = -1;
 			buf = nullptr;
@@ -152,12 +152,12 @@ public:
 		key_t k = ftok("/tmp/", key);
 		sharedMemId = shmget(k, sizeMemory, 0666);
 		if (sharedMemId == -1) {
-			std::cout << "shmget error" << std::endl;
+            std::cout << "shmget error: " << strerror(errno) << std::endl;
 			return false;
 		}
 		buf = (char*)shmat(sharedMemId, NULL, 0);
 		if (buf == MAP_FAILED) {
-			std::cout << "shmat error" << std::endl;
+            std::cout << "shmat error: " << strerror(errno) << std::endl;
 			shmctl(sharedMemId, IPC_RMID, NULL);
 			sharedMemId = -1;
 			buf = nullptr;
