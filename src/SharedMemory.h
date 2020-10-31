@@ -18,17 +18,11 @@ class SharedMemoryBase {
 protected:
 #if defined _WIN32 || defined _WIN64
 	HANDLE hMemory = INVALID_HANDLE_VALUE;
-    char* buf = nullptr;
 #elif defined __APPLE__
-	vector<int> sharedMemIds;
-    vector<char*> bufs;
-
-    void clear() {
-        sharedMemIds.clear();
-        bufs.clear();
-    }
+	int sharedMemId = -1;
 #endif
 	int sizeMemory = 0;
+	char* buf = nullptr;
 
 public:
 
@@ -41,9 +35,6 @@ public:
 };
 
 class SharedMemoryWriter : public SharedMemoryBase {
-    
-    
-    
 public:
 	bool init(std::string name, int key, int size) override {
 		this->sizeMemory = size;
@@ -75,36 +66,20 @@ public:
 		}
 
 #elif defined __APPLE__
-        
-        clear();
-        
-        int cnt = ceil(1.0 * sizeMemory / getpagesize());
-        for(int i = 0; i < cnt; i++) {
-            key_t k = ftok("/tmp/", key + i);
-            int sharedMemId = shmget(k, getpagesize(), IPC_CREAT | IPC_EXCL | 0666);
-            if (sharedMemId == -1) {
-                std::cout << "shmget error" << std::endl;
-                
-                clear();
-                
-                return false;
-            }
-            sharedMemIds.push_back(sharedMemId);
-
-            char* buf = (char*)shmat(sharedMemId, NULL, 0);
-            if (buf == MAP_FAILED) {
-                std::cout << "shmat error" << std::endl;
-                shmctl(sharedMemId, IPC_RMID, NULL);
-                sharedMemId = -1;
-                buf = nullptr;
-                
-                clear();
-                
-                return false;
-            }
-            bufs.push_back(buf);
-        }
-        
+		key_t k = ftok("/tmp/", key);
+		sharedMemId = shmget(k, sizeMemory, IPC_CREAT | IPC_EXCL | 0666);
+		if (sharedMemId == -1) {
+			std::cout << "shmget error" << std::endl;
+			return false;
+		}
+		buf = (char*)shmat(sharedMemId, NULL, 0);
+		if (buf == MAP_FAILED) {
+			std::cout << "shmat error" << std::endl;
+			shmctl(sharedMemId, IPC_RMID, NULL);
+			sharedMemId = -1;
+			buf = nullptr;
+			return false;
+		}
 #endif
 		return true;
 	}
@@ -115,46 +90,18 @@ public:
 
 	void update(char* data) override {
 		if (isOpened()) {
-#if defined _WIN32 || defined _WIN64
 			memcpy(buf, data, sizeMemory);
-#elif defined __APPLE__
-            for(int i = 0; i < bufs.size(); i++) {
-                int s = sizeMemory - i * getpagesize();
-                memcpy(bufs[i], data + i * getpagesize(), s < getpagesize() ? s : getpagesize());
-            }
-#endif
 		}
 	}
 
 	void update(char* data, int offset, int size) override {
 		if (isOpened()) {
-#if defined _WIN32 || defined _WIN64
-            memcpy(buf + offset, data, size);
-#elif defined __APPLE__
-            int bufIdx = floor(1.0 * offset / getpagesize());
-            int bufOffset = offset - bufIdx * getpagesize();
-            int useOnePage = getpagesize() - bufOffset > size;
-            int startSize = useOnePage ? size : getpagesize() - bufOffset;
-            int remainingSize = size - startSize;
-            memcpy(bufs[bufIdx] + bufOffset, data, startSize);
-            
-            int i = bufIdx + 1;
-            while(remainingSize > 0) {
-                memcpy(bufs[i], data + startSize, remainingSize < getpagesize() ? remainingSize: getpagesize());
-                remainingSize -= getpagesize();
-                startSize += getpagesize();
-                i++;
-           }
-#endif
+			memcpy(buf + offset, data, size);
 		}
 	}
 
 	bool isOpened() override {
-#if defined _WIN32 || defined _WIN64
-        return buf != nullptr;
-#elif defined __APPLE__
-        return bufs.size() > 0;
-#endif
+		return buf != nullptr;
 	}
 
 	void close() override {
@@ -168,12 +115,13 @@ public:
 			hMemory = NULL;
 		}
 #elif defined __APPLE__
-        for(int i = 0; i < sharedMemIds.size(); i++) {
-            if (sharedMemIds[i] != -1) {
-                shmctl(sharedMemIds[i], IPC_RMID, NULL);
-            }
-        }
-        clear();
+		if (sharedMemId != -1) {
+			shmctl(sharedMemId, IPC_RMID, NULL);
+			sharedMemId = -1;
+		}
+		if (buf != nullptr) {
+			buf = nullptr;
+		}
 #endif
 	}
 };
@@ -201,35 +149,20 @@ public:
 			return false;
 		}
 #elif defined __APPLE__
-        
-        clear();
-        
-        int cnt = ceil(1.0 * sizeMemory / getpagesize());
-        for(int i = 0; i < cnt; i++) {
-            key_t k = ftok("/tmp/", key + i);
-            int sharedMemId = shmget(k, sizeMemory, 0666);
-            if (sharedMemId == -1) {
-                std::cout << "shmget error" << std::endl;
-                
-                clear();
- 
-                return false;
-            }
-            sharedMemIds.push_back(sharedMemId);
-            
-            char* buf = (char*)shmat(sharedMemId, NULL, 0);
-            if (buf == MAP_FAILED) {
-                std::cout << "shmat error" << std::endl;
-                shmctl(sharedMemId, IPC_RMID, NULL);
-                sharedMemId = -1;
-                buf = nullptr;
-                
-                clear();
-                
-                return false;
-            }
-            bufs.push_back(buf);
-        }
+		key_t k = ftok("/tmp/", key);
+		sharedMemId = shmget(k, sizeMemory, 0666);
+		if (sharedMemId == -1) {
+			std::cout << "shmget error" << std::endl;
+			return false;
+		}
+		buf = (char*)shmat(sharedMemId, NULL, 0);
+		if (buf == MAP_FAILED) {
+			std::cout << "shmat error" << std::endl;
+			shmctl(sharedMemId, IPC_RMID, NULL);
+			sharedMemId = -1;
+			buf = nullptr;
+			return false;
+		}
 #endif
 		return true;
 	}
@@ -240,47 +173,18 @@ public:
 
 	void update(char* data) override {
 		if (isOpened()) {
-#if defined _WIN32 || defined _WIN64
-            memcpy(data, buf, sizeMemory);
-#elif defined __APPLE__
-            for(int i = 0; i < bufs.size(); i++) {
-                int s = sizeMemory - i * getpagesize();
-                memcpy(data + i * getpagesize(), bufs[i], s < getpagesize() ? s : getpagesize());
-            }
-#endif
+			memcpy(data, buf, sizeMemory);
 		}
 	}
 
 	void update(char* data, int offset, int size) override {
 		if (isOpened()) {
-#if defined _WIN32 || defined _WIN64
-            memcpy(data, buf + offset, size);
-#elif defined __APPLE__
-            int bufIdx = floor(1.0 * offset / getpagesize());
-            int bufOffset = offset - bufIdx * getpagesize();
-            int useOnePage = getpagesize() - bufOffset > size;
-            int startSize = useOnePage ? size : getpagesize() - bufOffset;
-            int remainingSize = size - startSize;
-            memcpy(data, bufs[bufIdx] + bufOffset, startSize);
-            
-            int i = bufIdx + 1;
-            while(remainingSize > 0) {
-                memcpy(data + startSize, bufs[i], remainingSize < getpagesize() ? remainingSize: getpagesize());
-                remainingSize -= getpagesize();
-                startSize += getpagesize();
-                i++;
-            }
-
-#endif
+			memcpy(data, buf + offset, size);
 		}
 	}
 
 	bool isOpened() override {
-#if defined _WIN32 || defined _WIN64
-        return buf != nullptr;
-#elif defined __APPLE__
-        return bufs.size() > 0;
-#endif
+		return buf != nullptr;
 	}
 
 	void close() override {
@@ -294,12 +198,13 @@ public:
 			hMemory = NULL;
 		}
 #elif defined __APPLE__
-        for(int i = 0; i < sharedMemIds.size(); i++) {
-            if (sharedMemIds[i] != -1) {
-                //shmctl(sharedMemId, IPC_RMID, NULL);
-            }
-        }
-        clear();
+		if (sharedMemId != -1) {
+			//shmctl(sharedMemId, IPC_RMID, NULL);
+			sharedMemId = -1;
+		}
+		if (buf != nullptr) {
+			buf = nullptr;
+		}
 #endif
 	}
 };
