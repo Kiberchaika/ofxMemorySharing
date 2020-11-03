@@ -126,7 +126,7 @@ public:
 					int size = audioQueue.size_approx();
 					if (size > 2 * requiredBufferSizeForQueue * channels && size > 2 * audioData.DATABUFFER_SIZE * audioData.DATABUFFERS_COUNT) {
 						audioQueue = moodycamel::ReaderWriterQueue<float>();
-						std::cout << "recreate" << std::endl;
+						std::cout << "recreate audio queue (size " << size << ")" << std::endl;
 					}
 
 					/*
@@ -203,8 +203,9 @@ public:
                 UDPsocket::IPv4 ipaddr;
                 std::string data;
                 while (isRunning) {
-                    size_t  dataSize = socket.recv(data, ipaddr);
-                    if (!data.empty()) {
+                    data = "";
+                    size_t dataSize = socket.recv(data, ipaddr);
+                    if (!data.empty() && data != "") {
 						OSCPP::Server::Message msg(OSCPP::Server::Packet(data.c_str(), dataSize));
                         OSCPP::Server::ArgStream args(msg.args());
                         if (msg == "/memorySharing") {
