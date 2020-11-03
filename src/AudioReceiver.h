@@ -13,10 +13,11 @@
 #include <chrono>
 #include <ctime>  
 
-struct AudioSenderConnection {
-	chrono::time_point<chrono::system_clock> timeUpdate;
+// TODO: rename to receiver slot?
+struct AudioReceiverConnection {
+	chrono::time_point<chrono::system_clock> updateTime;
 
-	std::thread threadReader;
+	std::thread readerThread; // Memory sharing
 	bool isRunning;
 	bool isActive;
 
@@ -26,13 +27,13 @@ struct AudioSenderConnection {
 
 	speexport::SpeexResampler speexResampler;
 
-	vector<float> data;
-	vector<float> resampledData;
+	vector<float> resampledReceivedAudioData;
 	int resampledBufferSize;
 
-	std::thread threadSocket;
+	std::thread settingsReceiverSocketThread; // OSC
+    
 
-	std::function<void(AudioSenderConnection*, std::string)> callbackReceiveData;
+	std::function<void(AudioReceiverConnection*, std::string)> settingsReceivedCallback;
 
 	UDPsocket socket;
 
@@ -54,11 +55,11 @@ public:
 	bool isReady;
 
 
-	AudioSenderConnection() {
+	AudioReceiverConnection() {
 		memoryQueueSize = 2;
 	}
 
-	~AudioSenderConnection() {
+	~AudioReceiverConnection() {
 		close();
 	}
 
@@ -80,7 +81,7 @@ public:
 		speexResampler.init(channels, sampleRate, requiredSampleRate, 4, &err);
 
 		resampledBufferSize = (1.0 * bufferSize * requiredSampleRate / sampleRate);
-		resampledData.resize(resampledBufferSize * channels);
+		resampledReceivedAudioData.resize(resampledBufferSize * channels);
 
 		audioData.init(bufferSize * channels, memoryQueueSize);
 #ifdef TARGET_WIN32
@@ -90,7 +91,7 @@ public:
 #endif
 
         if(!sharedMemoryReader.isOpened()) {
-            cout << std::string("Error while open memory sharing for read!") << endl;
+            cout << std::string("Error while open memory sharing to read!") << endl;
             throw std::exception();
         }
         
@@ -99,20 +100,20 @@ public:
 		isActive = true;
 		isReady = false;
 
-		threadSocket = std::thread([&]() {
+		settingsReceiverSocketThread = std::thread([&]() {
 			UDPsocket::IPv4 ipaddr;
 			std::string receivedString;
 
 			while (isRunning) {
 				size_t dataSize = socket.recv(receivedString, ipaddr);
 				if (!receivedString.empty()) {
-					if (callbackReceiveData) callbackReceiveData(this, receivedString);
+					if (settingsReceivedCallback) settingsReceivedCallback(this, receivedString);
 				}
 			}
 		});
-		threadSocket.detach();
+		settingsReceiverSocketThread.detach();
 
-		threadReader = std::thread([&]() {
+		readerThread = std::thread([&]() {
 			while (isRunning) {
 				if (isActive && audioDataReader.readFromMemory(sharedMemoryReader, audioData)) {
 					
@@ -120,7 +121,7 @@ public:
 					for (int c = 0; c < channels; c++) {
 						unsigned int in_len = bufferSize;
 						unsigned int out_len = resampledBufferSize;
-						speexResampler.process(c, &audioData.data[audioDataReader.idxRead][c * bufferSize], &in_len, &resampledData[c * resampledBufferSize], &out_len);
+						speexResampler.process(c, &audioData.data[audioDataReader.idxRead][c * bufferSize], &in_len, &resampledReceivedAudioData[c * resampledBufferSize], &out_len);
 					}
  
 					int size = audioQueue.size_approx();
@@ -143,7 +144,7 @@ public:
 
 					for (int i = 0; i < resampledBufferSize; i++) {
 						for (int c = 0; c < channels; c++) {
-							while (!audioQueue.enqueue(resampledData[i + c * resampledBufferSize])) {
+							while (!audioQueue.enqueue(resampledReceivedAudioData[i + c * resampledBufferSize])) {
 								std::cout << "error" << std::endl;
 							}
 						}
@@ -157,7 +158,7 @@ public:
                 }
 			}
 		});
-		threadReader.detach();
+		readerThread.detach();
 	}
 
 	void sendData(std::string str) {
@@ -186,13 +187,13 @@ class AudioReceiver {
     bool isRunning;
     
 	std::mutex mutexForSocket;
-	std::map<string, AudioSenderConnection*> audioSenderConnections;
+	std::map<string, AudioReceiverConnection*> audioSenderConnections;
 
 public:
 
 	int requiredBufferSizeForQueue = 512;
 	int requiredSampleRate = 44100;
-	std::function<void(AudioSenderConnection*, std::string)> callbackReceiveData;
+	std::function<void(AudioReceiverConnection*, std::string)> dataReceivedCallback;
 
 	~AudioReceiver() {
 		close();
@@ -216,11 +217,11 @@ public:
                             
 							mutexForSocket.lock();
 							if (audioSenderConnections.find(nameSharedMemory) != audioSenderConnections.end()) {
-                                audioSenderConnections[nameSharedMemory]->timeUpdate = std::chrono::system_clock::now();
+                                audioSenderConnections[nameSharedMemory]->updateTime = std::chrono::system_clock::now();
                             }
                             else {
-                                AudioSenderConnection* audioClientConnection = new AudioSenderConnection();
-                                audioClientConnection->timeUpdate = std::chrono::system_clock::now();
+                                AudioReceiverConnection* audioClientConnection = new AudioReceiverConnection();
+                                audioClientConnection->updateTime = std::chrono::system_clock::now();
                                 
                                 audioClientConnection->nameSharedMemory = nameSharedMemory;
 								audioClientConnection->name = args.string();
@@ -232,7 +233,7 @@ public:
 
 								audioClientConnection->requiredBufferSizeForQueue = requiredBufferSizeForQueue;
 								audioClientConnection->requiredSampleRate = requiredSampleRate;
-								audioClientConnection->callbackReceiveData = callbackReceiveData;
+								audioClientConnection->settingsReceivedCallback = dataReceivedCallback;
 
                                 audioClientConnection->init();
                                 
@@ -261,7 +262,7 @@ public:
 		for (auto it = audioSenderConnections.cbegin(), next_it = it; it != audioSenderConnections.cend(); it = next_it)
 		{
 			++next_it;
-			std::chrono::duration<double> diff = time - it->second->timeUpdate;
+			std::chrono::duration<double> diff = time - it->second->updateTime;
 			if (diff.count() > 1.0) {
 				mutexForSocket.lock();
 				it->second->close();
@@ -271,7 +272,7 @@ public:
 		}
 	}
 
-	std::map<string, AudioSenderConnection*> getAudioClientConnections() {
+	std::map<string, AudioReceiverConnection*> getAudioClientConnections() {
 		return audioSenderConnections;
 	}
 
