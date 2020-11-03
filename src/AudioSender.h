@@ -45,6 +45,10 @@ public:
 	~AudioSender() {
 		close();
 	}
+    
+    bool isActivated() {
+        return isRunning;
+    }
 
 	void init() {
 		close();
