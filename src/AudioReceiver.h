@@ -89,6 +89,12 @@ public:
 		sharedMemoryReader.init("", std::stoi(nameSharedMemory), audioData.getSize());
 #endif
 
+        if(!sharedMemoryReader.isOpened()) {
+            cout << std::string("Error while open memory sharing for read!") << endl;
+            throw std::exception();
+        }
+        
+        
 		isRunning = true;
 		isActive = true;
 		isReady = false;

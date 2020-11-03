@@ -72,6 +72,11 @@ public:
 				break;
 			}
 		}
+        
+        if(!sharedMemoryWriter.isOpened()) {
+            cout << std::string("Error while open memory sharing for write!") << endl;
+            throw std::exception();
+        }
 
 		isRunning = true;
 
@@ -99,7 +104,7 @@ public:
 	}
 
 	void update() {
-		if (isRunning) {
+		if (isRunning && sharedMemoryWriter.isOpened()) {
 			std::vector<char> buffer(1024 * 2);
 			OSCPP::Client::Packet packet(buffer.data(), buffer.size());
 			packet.
