@@ -89,6 +89,7 @@ public:
 			std::string receivedString;
 
 			while (isRunning) {
+                receivedString = "";
 				size_t dataSize = socket.recv(receivedString, ipaddr);
 				if (!receivedString.empty()) {
 					if (!strncmp(receivedString.data(), "port:", 5)) {

@@ -92,7 +92,7 @@ public:
 
         if(!sharedMemoryReader.isOpened()) {
             cout << std::string("Error while open memory sharing to read!") << endl;
-            throw std::exception();
+//            throw std::exception();
         }
         
         
