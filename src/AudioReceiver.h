@@ -19,7 +19,7 @@ struct AudioReceiverConnection {
 
 	std::thread readerThread; // Memory sharing
 	bool isRunning;
-	bool isActive;
+	bool shouldReadFromMemoryNow;
 
 	SharedMemoryReader sharedMemoryReader;
 	AudioData audioData;
@@ -52,7 +52,7 @@ public:
 	int requiredSampleRate;
 
 	moodycamel::ReaderWriterQueue<float> audioQueue;
-	bool isReady;
+	bool isBufferReadyForReading;
 
 
 	AudioReceiverConnection() {
@@ -97,8 +97,8 @@ public:
         
         
 		isRunning = true;
-		isActive = true;
-		isReady = false;
+		shouldReadFromMemoryNow = true;
+		isBufferReadyForReading = false;
 
 		settingsReceiverSocketThread = std::thread([&]() {
 			UDPsocket::IPv4 ipaddr;
@@ -115,7 +115,7 @@ public:
 
 		readerThread = std::thread([&]() {
 			while (isRunning) {
-				if (isActive && audioDataReader.readFromMemory(sharedMemoryReader, audioData)) {
+				if (shouldReadFromMemoryNow && audioDataReader.readFromMemory(sharedMemoryReader, audioData)) {
 					
 					// resampling
 					for (int c = 0; c < channels; c++) {
@@ -151,7 +151,7 @@ public:
 					}
 					
 					//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-					isReady = true;
+					isBufferReadyForReading = true;
 				}
                 else {
                     std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -168,7 +168,7 @@ public:
 	}
 
 	void setActive(bool status) {
-		isActive = status;
+		shouldReadFromMemoryNow = status;
 	}
 
 	void close() {
