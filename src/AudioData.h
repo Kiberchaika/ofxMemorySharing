@@ -25,7 +25,7 @@ public:
 	}
 
 	float* getDataPointer() {
-		return data[n].data();
+        return n < data.size() ? data[n].data() : nullptr;
 	}
 
 	size_t getSize() {
