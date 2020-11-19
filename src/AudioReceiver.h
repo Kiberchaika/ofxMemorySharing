@@ -218,6 +218,19 @@ public:
 							mutexForSocket.lock();
 							if (audioSenderConnections.find(nameSharedMemory) != audioSenderConnections.end()) {
                                 audioSenderConnections[nameSharedMemory]->updateTime = std::chrono::system_clock::now();
+                                
+                                string name = args.string();
+                                int bufferSize = args.int32();
+                                int sampleRate = args.int32();
+                                int channels = args.int32();
+                                int memoryQueueSize = args.int32();
+                                int portSend = args.int32();
+
+                                if(audioSenderConnections[nameSharedMemory]->portSend !=  portSend) {
+                                    audioSenderConnections[nameSharedMemory]->close();
+                                    audioSenderConnections.erase(audioSenderConnections.find(nameSharedMemory));
+                                }
+                              
                             }
                             else {
                                 AudioReceiverConnection* audioClientConnection = new AudioReceiverConnection();
@@ -263,7 +276,8 @@ public:
 		{
 			++next_it;
 			std::chrono::duration<double> diff = time - it->second->updateTime;
-			if (diff.count() > 1.0) {
+            if (diff.count() > 1.0)
+            {
 				mutexForSocket.lock();
 				it->second->close();
 				audioSenderConnections.erase(it);
