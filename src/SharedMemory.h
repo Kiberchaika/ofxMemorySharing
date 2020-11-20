@@ -120,7 +120,7 @@ public:
 			sharedMemId = -1;
 		}
 		if (buf != nullptr) {
-            //shmdt(buf);
+            shmdt(buf);
 			buf = nullptr;
 		}
 #endif
