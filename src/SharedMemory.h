@@ -199,13 +199,14 @@ public:
 			hMemory = NULL;
 		}
 #elif defined __APPLE__
-		if (sharedMemId != -1) {
-			//shmctl(sharedMemId, IPC_RMID, NULL);
-			sharedMemId = -1;
-		}
-		if (buf != nullptr) {
-			buf = nullptr;
-		}
+        if (sharedMemId != -1) {
+//            shmctl(sharedMemId, IPC_RMID, NULL);
+            sharedMemId = -1;
+        }
+        if (buf != nullptr) {
+//            shmdt(buf);
+            buf = nullptr;
+        }
 #endif
 	}
 };
