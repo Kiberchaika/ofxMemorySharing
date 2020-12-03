@@ -200,11 +200,11 @@ public:
 		}
 #elif defined __APPLE__
         if (sharedMemId != -1) {
-//            shmctl(sharedMemId, IPC_RMID, NULL);
+            //shmctl(sharedMemId, IPC_RMID, NULL);
             sharedMemId = -1;
         }
         if (buf != nullptr) {
-//            shmdt(buf);
+            shmdt(buf);
             buf = nullptr;
         }
 #endif

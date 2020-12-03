@@ -272,18 +272,18 @@ public:
 		// clear old clients
 		std::chrono::time_point<std::chrono::system_clock> time = std::chrono::system_clock::now();
 
+        mutexForSocket.lock();
 		for (auto it = audioSenderConnections.cbegin(), next_it = it; it != audioSenderConnections.cend(); it = next_it)
 		{
 			++next_it;
 			std::chrono::duration<double> diff = time - it->second->updateTime;
             if (diff.count() > 1.0)
             {
-				mutexForSocket.lock();
 				it->second->close();
 				audioSenderConnections.erase(it);
-				mutexForSocket.unlock();
 			}
 		}
+        mutexForSocket.unlock();
 	}
 
 	std::map<string, AudioReceiverConnection*> getAudioClientConnections() {
